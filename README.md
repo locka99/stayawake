@@ -1,0 +1,1 @@
+This is a program for Windows that intermittently sends an F15 keypress to stop the computer from sleeping. Might be useful for testing purposes or when you want to override the default sleep behaviour of a computer.
