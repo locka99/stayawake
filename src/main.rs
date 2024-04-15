@@ -1,5 +1,3 @@
-use std::env;
-
 use windows::core::{GUID, w};
 use windows::Win32::{
     Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM},
@@ -16,8 +14,9 @@ use windows::Win32::UI::Shell::{NIF_GUID, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_SE
 // Bindings lookup - https://microsoft.github.io/windows-rs/features/#/master
 
 fn main() {
-    let hwnd = setup();
-    message_loop(hwnd);
+    // Create the GUI and run in a loop processing timer and menu events
+    let _ = setup();
+    message_loop();
 }
 
 const NID_ACTION: usize = 1;
@@ -44,12 +43,13 @@ fn setup() -> HWND {
         };
         let _atom = RegisterClassExW(&wndclass);
 
+        // Create a window to process messages
         let hwnd = CreateWindowExW(WS_EX_TOOLWINDOW, wnd_class_name, w!(""), WS_VISIBLE, 0, 0, 1, 1, HWND::default(), HMENU::default(), hinstance, None);
-
         ShowWindow(hwnd, SW_HIDE);
         UpdateWindow(hwnd);
         SetTimer::<HWND>(hwnd, NID_ACTION, INTERVAL, None);
 
+        // Create a tray icon
         setup_notification_icon(hwnd);
 
         hwnd
@@ -80,21 +80,23 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, w_param: WPARAM, l_param: LPARA
                 LRESULT(0)
             }
             WM_COMMAND => {
-                if w_param.0 == MENU_QUIT {
-                    PostQuitMessage(0);
+                // Menu commands
+                match w_param.0 {
+                    MENU_QUIT => PostQuitMessage(0),
+                    _ => {}
                 }
                 LRESULT(0)
-            },
+            }
             WM_USER_TRAY_NOTIFICATION => {
-                // Tray
+                // Tray events
                 match l_param.0 as u32 {
-                    WM_RBUTTONUP => {
+                    WM_CONTEXTMENU => {
                         // Show context menu
                         let x = get_x(w_param.0);
                         let y = get_y(w_param.0);
 
                         let _ = CreatePopupMenu().map(|hmenu| {
-                            let _ = AppendMenuW(hmenu, MF_STRING| MF_ENABLED, MENU_QUIT, w!("Quit"));
+                            let _ = AppendMenuW(hmenu, MF_STRING | MF_ENABLED, MENU_QUIT, w!("Quit"));
                             let _ = TrackPopupMenu(
                                 hmenu, TPM_LEFTALIGN | TPM_BOTTOMALIGN, x as i32, y as i32, 0, hwnd, None);
                             DestroyMenu(hmenu);
@@ -113,6 +115,7 @@ const WM_USER_TRAY_NOTIFICATION: u32 = WM_USER;
 
 fn setup_notification_icon(hwnd: HWND) {
     unsafe {
+        // Show an icon in the tray
         let hicon = if let Ok(handle) = LoadImageW(None, w!(".\\stayawake.ico"), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_LOADFROMFILE) {
             HICON(handle.0)
         } else {
@@ -137,7 +140,7 @@ fn setup_notification_icon(hwnd: HWND) {
     }
 }
 
-fn message_loop(hwnd: HWND) {
+fn message_loop() {
     unsafe {
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).into() {
