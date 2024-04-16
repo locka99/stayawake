@@ -10,6 +10,9 @@ opt-level = "z"
 panic = "abort"
 codegen-units = 1
 
+[build-dependencies]
+embed-resource = "2.4"
+
 [dependencies]
 
 [dependencies.windows]
